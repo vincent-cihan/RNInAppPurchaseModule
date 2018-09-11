@@ -23,6 +23,10 @@ RNInAppPurchaseModule.loadProducts(iapProductIds, (error, products) => {
 // 5.购买某个商品
 RNInAppPurchaseModule.purchaseProduct(ProductId, (error, purchase) => {
 });
+
+// 6.恢复购买
+RNInAppPurchaseModule.restorePurchases((error, products) => {
+});
 ```
 
 ### 二、两种漏单内购情况
