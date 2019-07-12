@@ -20,8 +20,8 @@ RNInAppPurchaseModule.removePurchase(purchase);
 RNInAppPurchaseModule.loadProducts(iapProductIds, (error, products) => {
 });
 
-// 5.购买某个商品
-RNInAppPurchaseModule.purchaseProduct(ProductId, (error, purchase) => {
+// 5.购买某个商品 ProductId:苹果内购商品ID，myProductId:自己服务器商品ID（用来传回给服务器，字段名可以自己去文件里修改）
+RNInAppPurchaseModule.purchaseProduct(ProductId, myProductId, (error, purchase) => {
 });
 
 // 6.恢复购买
@@ -73,7 +73,7 @@ RNInAppPurchaseModule.loadProducts(this.state.iapProductIds, (error, products) =
 ```
 if (iOS) {
 
-RNInAppPurchaseModule.purchaseProduct(produceId, (error, result) => {
+RNInAppPurchaseModule.purchaseProduct(produceId, myProductId, (error, result) => {
 
 if (error) {
 BXAlert.showTipAlert('提示', error || '购买失败');

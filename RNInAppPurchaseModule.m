@@ -56,12 +56,14 @@
   NSArray *products;  // 所有可卖商品
   NSMutableDictionary *_callbacks;  // 回调，key是商品id
   RCTResponseSenderBlock _lostCallBack; // 丢单数据的重新监听回调
+  NSMutableDictionary *_myProductIds;  // 业务服务器商品ID,key是商品id
 }
 
 - (instancetype)init
 {
   if ((self = [super init])) {
     _callbacks = [[NSMutableDictionary alloc] init];
+    _myProductIds = [[NSMutableDictionary alloc] init];
   }
   return self;
 }
@@ -117,6 +119,7 @@ RCT_EXPORT_METHOD(removePurchase:(NSDictionary *)purchase) {
  *        callback： 回调，返回
  */
 RCT_EXPORT_METHOD(purchaseProduct:(NSString *)productIdentifier
+                  myProductId:(NSString *)myProductId
                   callback:(RCTResponseSenderBlock)callback)
 {
   SKProduct *product;
@@ -132,6 +135,7 @@ RCT_EXPORT_METHOD(purchaseProduct:(NSString *)productIdentifier
     SKPayment *payment = [SKPayment paymentWithProduct:product];
     [[SKPaymentQueue defaultQueue] addPayment:payment];
     _callbacks[RCTKeyForInstance(payment.productIdentifier)] = callback;
+    _myProductIds[RCTKeyForInstance(payment.productIdentifier)] = myProductId;
   } else {
     callback(@[@"无效商品"]);
   }
@@ -169,7 +173,7 @@ RCT_EXPORT_METHOD(loadProducts:(NSArray *)productIdentifiers
 {
   for (SKPaymentTransaction *transaction in transactions) {
     switch (transaction.transactionState) {
-      // 购买失败
+        // 购买失败
       case SKPaymentTransactionStateFailed: {
         NSString *key = RCTKeyForInstance(transaction.payment.productIdentifier);
         RCTResponseSenderBlock callback = _callbacks[key];
@@ -244,20 +248,23 @@ RCT_EXPORT_METHOD(loadProducts:(NSArray *)productIdentifiers
 - (void)buyAppleStoreProductSucceedWithPaymentTransactionp:(SKPaymentTransaction *)transaction callback:(RCTResponseSenderBlock)callback {
   NSString *key = RCTKeyForInstance(transaction.payment.productIdentifier);
   NSString *transactionReceiptString= nil;
-    // 验证凭据，获取到苹果返回的交易凭据
-    // appStoreReceiptURL iOS7.0增加的，购买交易完成后，会将凭据存放在该地址
-    NSURLRequest * appstoreRequest = [NSURLRequest requestWithURL:[[NSBundle mainBundle]appStoreReceiptURL]];
-    NSError *error = nil;
-    NSData * receiptData = [NSURLConnection sendSynchronousRequest:appstoreRequest returningResponse:nil error:&error];
+  // 验证凭据，获取到苹果返回的交易凭据
+  // appStoreReceiptURL iOS7.0增加的，购买交易完成后，会将凭据存放在该地址
+  NSURLRequest * appstoreRequest = [NSURLRequest requestWithURL:[[NSBundle mainBundle]appStoreReceiptURL]];
+  NSError *error = nil;
+  NSData * receiptData = [NSURLConnection sendSynchronousRequest:appstoreRequest returningResponse:nil error:&error];
   
   if (!receiptData) {
     callback(@[@"获取交易凭证失败"]);
   } else {
     transactionReceiptString = [receiptData base64EncodedStringWithOptions:NSDataBase64EncodingEndLineWithLineFeed];
+    NSString *key = RCTKeyForInstance(transaction.payment.productIdentifier);
+    NSString *myProductId = _myProductIds[key];
     NSDictionary *purchase = @{
                                @"transactionIdentifier": transaction.transactionIdentifier,
                                @"productIdentifier": transaction.payment.productIdentifier,
-                               @"receiptData": transactionReceiptString
+                               @"receiptData": transactionReceiptString,
+                               @"myProductId": myProductId
                                };
     // 将凭证缓存，后台验证结束后再删除
     NSMutableArray *iapUnverifyOrdersArray = [NSMutableArray array];
@@ -320,8 +327,8 @@ restoreCompletedTransactionsFailedWithError:(NSError *)error
                                 @"identifier": item.productIdentifier,
                                 @"priceString": item.priceString,
                                 @"downloadable": item.downloadable ? @"true" : @"false" ,
-                                @"description": item.localizedDescription,
-                                @"title": item.localizedTitle,
+                                @"description": item.localizedDescription ? item.localizedDescription : @"商品描述",
+                                @"title": item.localizedTitle ? item.localizedTitle : @"商品名称",
                                 };
       [productsArrayForJS addObject:product];
     }
